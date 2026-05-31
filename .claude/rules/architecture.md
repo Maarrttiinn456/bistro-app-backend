@@ -8,7 +8,7 @@
 
 4. **Zod schémata přes drizzle-zod** — nepiš Zod schémata ručně pro DB entity. Používej `createInsertSchema` / `createSelectSchema` z `drizzle-zod`.
 
-5. **Auth je proxy, ne vlastní logika** — backend nikdy negeneruje JWT. Pouze forwarduje na Supabase Auth a ověřuje příchozí tokeny přes `jose` v preHandler middleware. Frontend nikdy nevolá Supabase přímo — vše jde přes Fastify.
+5. **Auth je proxy, ne vlastní logika** — backend nikdy negeneruje JWT. Pouze forwarduje na Supabase Auth a ověřuje příchozí tokeny přes `jose` v preHandler middleware. Frontend nikdy nevolá Supabase přímo — vše jde přes Fastify. Supabase používá asymetrické ECC P-256 klíče — žádný `JWT_SECRET` neexistuje. Ověřování probíhá přes JWKS URL: `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` pomocí `createRemoteJWKSet` z `jose`.
 
 6. **Makra se počítají v TypeScriptu** — žádné DB views. Drizzle JOIN + aritmetika v route handlerech. Platí pro `recipe_macros`, `slot_macros` i `daily_intake` (statistiky po dnech).
 

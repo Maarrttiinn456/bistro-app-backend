@@ -19,7 +19,8 @@ src/
 │   ├── client.ts        # postgres-js + drizzle instance
 │   └── relations.ts
 ├── schemas/             # Zod schémata přes drizzle-zod
-├── routes/              # Fastify routy (auth, meals, uploads, health)
+├── routes/              # Fastify route registrace (URL, schema, preHandler, odkaz na controller)
+├── controllers/         # Handler funkce — business logika, Drizzle queries
 ├── plugins/             # JWT preHandler, Supabase klient, Swagger, CORS
 ├── lib/                 # helpers (signed URL atd.)
 └── server.ts            # app bootstrap
