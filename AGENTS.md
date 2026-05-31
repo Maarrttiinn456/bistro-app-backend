@@ -48,8 +48,6 @@ Soubory se nenačítají automaticky — vyžádej si ten relevantní.
 
 ## .agents složka
 
-`.agents` je společný zdroj pravdy pro projektová pravidla a feature dokumentaci.
-
 ```
 .agents/
 ├── docs/      # feature-specific dokumenty (jeden soubor = jedna feature)
