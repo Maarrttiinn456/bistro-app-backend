@@ -43,8 +43,11 @@ pnpm db:studio    # Drizzle Studio (lokální DB prohlížeč)
 ## Feature docs
 
 Před prací na konkrétní feature si přečti příslušný soubor v `.agents/docs/`.
-Např. pro auth endpointy: `.agents/docs/feature-auth-endpoints.md`.
 Soubory se nenačítají automaticky — vyžádej si ten relevantní.
+
+## Endpoint katalog (požadavky mobilní appky)
+
+@.agents/docs/endpoints.md
 
 ## .agents složka
 
@@ -55,3 +58,4 @@ Soubory se nenačítají automaticky — vyžádej si ten relevantní.
     ├── architecture.md   # architektonická pravidla (načteno automaticky)
     └── data-structure.md # tabulky, relace, datové toky (načteno automaticky)
 ```
+
