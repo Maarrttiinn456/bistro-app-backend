@@ -19,12 +19,31 @@ export const registerSwagger = async (app: FastifyInstance) => {
       ],
       tags: [
         {
+          name: 'System',
+          description: 'System and API contract endpoints',
+        },
+        {
           name: 'Recipes',
           description: 'Recipe endpoints',
         },
       ],
     },
   })
+
+  app.get('/openapi.json', {
+    schema: {
+      tags: ['System'],
+      summary: 'Get OpenAPI specification',
+      operationId: 'getOpenApiSpec',
+      response: {
+        200: {
+          description: 'OpenAPI specification',
+          type: 'object',
+          additionalProperties: true,
+        },
+      },
+    },
+  }, async () => app.swagger())
 
   await app.register(fastifySwaggerUi, {
     routePrefix: '/docs',

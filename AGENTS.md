@@ -2,6 +2,21 @@
 
 Node.js + Fastify + Drizzle ORM + Supabase Postgres + Zod + TypeScript.
 
+## Pracovni pravidla
+
+- Delej pouze to, co uzivatel explicitne zadal.
+- Nikdy nepridavej, neupravuj ani nevylepsuj dalsi veci jen proto, ze davaji smysl.
+- Nikdy neupravuj soubory, casti kodu ani chovani mimo explicitni zadani uzivatele.
+- Pokud by bylo vhodne udelat neco navic, nejdriv se zeptej a cekej na potvrzeni.
+- Pokud si nejsi jisty, co ma byt spravne reseni, zeptej se uzivatele pred upravou kodu.
+- Drz reseni co nejjednodussi a nepridavej abstrakce, dokud nejsou opravdu potreba.
+
+## Komentare v kodu
+
+- Pokud je funkce endpoint/controller handler, dej nad ni viditelny blokovy komentar ve formatu `/* ... */`.
+- Endpoint komentar ma obsahovat HTTP metodu, cestu a kratce co endpoint dela.
+- Bezne helper funkce komentuj jen kratkym `//` komentarem, pokud neni jejich ucel okamzite zrejmy.
+
 ## Architektonická pravidla
 
 @.agents/rules/architecture.md
@@ -38,6 +53,7 @@ pnpm start        # produkční spuštění
 pnpm db:generate  # drizzle-kit generate (vytvoří SQL migraci)
 pnpm db:migrate   # drizzle-kit migrate (aplikuje na DB)
 pnpm db:studio    # Drizzle Studio (lokální DB prohlížeč)
+pnpm db:seed      # idempotentni demo seed (2 uzivatele, 1 domacnost, recepty)
 ```
 
 ## Feature docs
