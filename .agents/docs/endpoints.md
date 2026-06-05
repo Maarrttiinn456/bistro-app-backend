@@ -71,7 +71,7 @@ Slouží jako kontext pro routy (Fastify), Zod response schémata a OpenAPI/Orva
 | `GET /recipes/:recipeId` | Vrací detail receptu, suroviny, postup, fotku a makra z `recipe_macros`. |
 | `PATCH /recipes/:recipeId` | Vrací upravený recept včetně aktuálních surovin a maker. |
 | `DELETE /recipes/:recipeId` | Vrací potvrzení smazání receptu. |
-| `POST /recipes/import-url/preview` | Vrací návrh receptu z URL (název, porce, postup, suroviny, možné matchnutí na `ingredients`); nic neukládá. |
+| `POST /recipes/import-url/preview` | Vrací návrh receptu z URL (název, porce, postup, suroviny, obrázek jako externí URL, možné matchnutí na `ingredients`); nic neukládá. |
 
 ## Plán jídel
 
@@ -121,7 +121,9 @@ Slouží jako kontext pro routy (Fastify), Zod response schémata a OpenAPI/Orva
 | `PATCH /shopping-list-items/:itemId` | Vrací upravenou položku: název, množství, kategorii, pořadí nebo `checked`. |
 | `DELETE /shopping-list-items/:itemId` | Vrací potvrzení smazání položky. |
 
-## Uploady
+## Uploady — odloženo mimo MVP
+
+Pro MVP se obrázek receptu ukládá do `recipes.image` jako externí URL získaná při importu receptu z URL. Supabase Storage uploady budou potřeba až pro vlastní fotky uživatele nebo pro kopírování externích obrázků pod naši kontrolu.
 
 | Endpoint | Popis odpovědi |
 |---|---|
@@ -139,7 +141,7 @@ Slouží jako kontext pro routy (Fastify), Zod response schémata a OpenAPI/Orva
 6. Plán jídel
 7. Food log
 8. Dashboard today a denní statistiky
-9. Uploady pro fotky
+9. Import obrázku receptu jako externí URL
 10. Invite flow, AI plán a nákupní seznamy
 
 ## Otevřené rozhodnutí
