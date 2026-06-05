@@ -18,6 +18,15 @@ type AuthContextInput = {
   }
 }
 
+type BootstrapAuthUserInput = {
+  user: {
+    id: string
+    email?: string | null
+  }
+  name: string
+  email: string
+}
+
 // Vytahne access token z Authorization hlavicky ve formatu Bearer token.
 const getBearerToken = (authorization: string | undefined) => {
   const [scheme, token] = authorization?.split(' ') ?? []
@@ -37,6 +46,51 @@ const sendAuthError = async (reply: FastifyReply, error: unknown) => {
   }
 
   await reply.code(500).send({ error: 'Auth request failed' })
+}
+
+// Vytvori profil a prvni domacnost pro noveho Supabase Auth uzivatele.
+const bootstrapAuthUser = async ({ user, name, email }: BootstrapAuthUserInput) => {
+  const [existingProfile] = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+    .limit(1)
+
+  if (existingProfile) {
+    return
+  }
+
+  await db.transaction(async (tx) => {
+    const [profile] = await tx
+      .insert(profiles)
+      .values({
+        id: user.id,
+        name,
+        email: user.email ?? email,
+      })
+      .returning({ id: profiles.id })
+
+    const [household] = await tx
+      .insert(households)
+      .values({
+        name: `${name}'s household`,
+        createdBy: profile.id,
+      })
+      .returning({ id: households.id })
+
+    await tx
+      .insert(householdMembers)
+      .values({
+        householdId: household.id,
+        userId: profile.id,
+        role: 'owner',
+      })
+
+    await tx
+      .update(profiles)
+      .set({ activeHouseholdId: household.id })
+      .where(eq(profiles.id, profile.id))
+  })
 }
 
 // Slozi prihlaseny uzivatelsky kontext vcetne profilu a domacnosti.
@@ -102,6 +156,12 @@ export const signUp = async (
       await sendMissingAuthUser(reply)
       return
     }
+
+    await bootstrapAuthUser({
+      user: authSession.user,
+      name: request.body.name,
+      email: request.body.email,
+    })
 
     const context = await getUserContext({
       user: authSession.user,

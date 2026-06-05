@@ -5,10 +5,12 @@ import {
   ingredients,
   mealPlanSlotIngredients,
   mealPlanSlots,
-  profiles,
   recipeIngredients,
   recipes,
 } from '../db/schema'
+import { getActiveHouseholdId } from '../lib/access'
+import { getDateRange } from '../lib/date-range'
+import { addMacroTotals, emptyMacros, toNumber } from '../lib/nutrition'
 import type {
   CreateMealPlanSlotBody,
   GetMealPlanQuery,
@@ -21,39 +23,6 @@ type SlotIngredientInput = NonNullable<CreateMealPlanSlotBody['ingredients']>[nu
 type MealPlanSlotIngredient = typeof mealPlanSlotIngredients.$inferSelect
 type Ingredient = typeof ingredients.$inferSelect
 type Recipe = typeof recipes.$inferSelect
-
-// Prevadi Drizzle numeric hodnotu z DB na number pro JSON odpoved.
-const toNumber = (value: string | number | null) => {
-  if (value === null) {
-    return null
-  }
-
-  return Number(value)
-}
-
-// Docasna prazdna makra pro detail slotu, kdyz chybi napojena surovina.
-const emptyMacros = {
-  kcal: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-}
-
-// Pripocita makra jedne suroviny do celkovych maker slotu.
-const addMacroTotals = (total: typeof emptyMacros, slotIngredient: MealPlanSlotIngredient, ingredient?: Ingredient) => {
-  if (!ingredient) {
-    return total
-  }
-
-  const amountRatio = Number(slotIngredient.amountG) / 100
-
-  return {
-    kcal: total.kcal + Number(ingredient.kcalPer100) * amountRatio,
-    protein: total.protein + Number(ingredient.proteinPer100) * amountRatio,
-    carbs: total.carbs + Number(ingredient.carbsPer100) * amountRatio,
-    fat: total.fat + Number(ingredient.fatPer100) * amountRatio,
-  }
-}
 
 // Upravuje surovinu slotu z DB do tvaru, ktery vraci API.
 const normalizeSlotIngredient = (slotIngredient: MealPlanSlotIngredient) => ({
@@ -72,17 +41,6 @@ const normalizeRecipeSummary = (recipe: Recipe | null) => recipe
     mealTypes: recipe.mealTypes,
   }
   : null
-
-// Najde aktivni domacnost prihlaseneho uzivatele podle request.user.id.
-const getActiveHouseholdId = async (userId: string) => {
-  const [profile] = await db
-    .select({ activeHouseholdId: profiles.activeHouseholdId })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1)
-
-  return profile?.activeHouseholdId ?? null
-}
 
 // Vraci chybu, kdyz uzivatel nema nastavenou aktivni domacnost.
 const sendMissingHousehold = async (reply: FastifyReply) => reply.code(400).send({
@@ -182,7 +140,7 @@ const getSlotDetail = async (slotId: string, userId: string) => {
   const macrosTotal = slotIngredients.reduce(
     (total, slotIngredient) => addMacroTotals(
       total,
-      slotIngredient,
+      slotIngredient.amountG,
       slotIngredient.ingredientId ? ingredientById.get(slotIngredient.ingredientId) : undefined,
     ),
     emptyMacros,
@@ -196,20 +154,6 @@ const getSlotDetail = async (slotId: string, userId: string) => {
       macrosTotal,
     },
   }
-}
-
-// Vytvori seznam dat mezi zacatkem a koncem vcetne obou hranic.
-const getDateRange = (from: string, to: string) => {
-  const dates: string[] = []
-  const current = new Date(`${from}T00:00:00.000Z`)
-  const last = new Date(`${to}T00:00:00.000Z`)
-
-  while (current <= last) {
-    dates.push(current.toISOString().slice(0, 10))
-    current.setUTCDate(current.getUTCDate() + 1)
-  }
-
-  return dates
 }
 
 /*
@@ -280,35 +224,39 @@ export const createMealPlanSlot = async (
     return
   }
 
-  const [slot] = await db
-    .insert(mealPlanSlots)
-    .values({
-      userId: request.user.id,
-      dayDate: body.dayDate,
-      slot: body.slot,
-      recipeId: body.recipeId ?? null,
-    })
-    .returning()
+  const slot = await db.transaction(async (tx) => {
+    const [createdSlot] = await tx
+      .insert(mealPlanSlots)
+      .values({
+        userId: request.user.id,
+        dayDate: body.dayDate,
+        slot: body.slot,
+        recipeId: body.recipeId ?? null,
+      })
+      .returning()
 
-  if (body.ingredients?.length) {
-    await db
-      .insert(mealPlanSlotIngredients)
-      .values(body.ingredients.map((ingredient, index) => mapIngredientInput(slot.id, ingredient, index)))
-  } else if (recipe) {
-    const recipeIngredientRows = await db
-      .select()
-      .from(recipeIngredients)
-      .where(eq(recipeIngredients.recipeId, recipe.id))
-      .orderBy(asc(recipeIngredients.position), asc(recipeIngredients.createdAt))
-
-    if (recipeIngredientRows.length) {
-      await db
+    if (body.ingredients?.length) {
+      await tx
         .insert(mealPlanSlotIngredients)
-        .values(recipeIngredientRows.map((ingredient, index) => (
-          mapRecipeIngredientToSlot(slot.id, ingredient, recipe.portions, index)
-        )))
+        .values(body.ingredients.map((ingredient, index) => mapIngredientInput(createdSlot.id, ingredient, index)))
+    } else if (recipe) {
+      const recipeIngredientRows = await tx
+        .select()
+        .from(recipeIngredients)
+        .where(eq(recipeIngredients.recipeId, recipe.id))
+        .orderBy(asc(recipeIngredients.position), asc(recipeIngredients.createdAt))
+
+      if (recipeIngredientRows.length) {
+        await tx
+          .insert(mealPlanSlotIngredients)
+          .values(recipeIngredientRows.map((ingredient, index) => (
+            mapRecipeIngredientToSlot(createdSlot.id, ingredient, recipe.portions, index)
+          )))
+      }
     }
-  }
+
+    return createdSlot
+  })
 
   const detail = await getSlotDetail(slot.id, request.user.id)
 
@@ -418,13 +366,15 @@ export const updateMealPlanSlotIngredients = async (
     return
   }
 
-  await db.delete(mealPlanSlotIngredients).where(eq(mealPlanSlotIngredients.slotId, slot.id))
+  await db.transaction(async (tx) => {
+    await tx.delete(mealPlanSlotIngredients).where(eq(mealPlanSlotIngredients.slotId, slot.id))
 
-  if (request.body.ingredients.length) {
-    await db
-      .insert(mealPlanSlotIngredients)
-      .values(request.body.ingredients.map((ingredient, index) => mapIngredientInput(slot.id, ingredient, index)))
-  }
+    if (request.body.ingredients.length) {
+      await tx
+        .insert(mealPlanSlotIngredients)
+        .values(request.body.ingredients.map((ingredient, index) => mapIngredientInput(slot.id, ingredient, index)))
+    }
+  })
 
   return getSlotDetail(slot.id, request.user.id)
 }

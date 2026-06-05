@@ -9,6 +9,8 @@ import {
   profiles,
   recipes,
 } from '../db/schema'
+import { getDateRange, getExclusiveEndDate, getStartDate } from '../lib/date-range'
+import { addMacroTotals, emptyMacros, toNumber } from '../lib/nutrition'
 import type { DashboardTodayQuery, StatsRangeQuery } from '../schemas/overview.schema'
 
 type FoodLogRow = typeof foodLog.$inferSelect
@@ -16,21 +18,6 @@ type MealPlanSlotRow = typeof mealPlanSlots.$inferSelect
 type MealPlanSlotIngredient = typeof mealPlanSlotIngredients.$inferSelect
 type Ingredient = typeof ingredients.$inferSelect
 type Recipe = typeof recipes.$inferSelect
-
-const emptyMacros = {
-  kcal: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-}
-
-const toNumber = (value: string | number | null) => {
-  if (value === null) {
-    return null
-  }
-
-  return Number(value)
-}
 
 const roundNumber = (value: number) => Math.round(value * 100) / 100
 
@@ -59,28 +46,6 @@ const normalizeRecipeSummary = (recipe: Recipe | null) => recipe
     mealTypes: recipe.mealTypes,
   }
   : null
-
-const getStartDate = (date: string) => new Date(`${date}T00:00:00.000Z`)
-
-const getExclusiveEndDate = (date: string) => {
-  const endDate = getStartDate(date)
-  endDate.setUTCDate(endDate.getUTCDate() + 1)
-
-  return endDate
-}
-
-const getDateRange = (from: string, to: string) => {
-  const dates: string[] = []
-  const current = getStartDate(from)
-  const last = getStartDate(to)
-
-  while (current <= last) {
-    dates.push(current.toISOString().slice(0, 10))
-    current.setUTCDate(current.getUTCDate() + 1)
-  }
-
-  return dates
-}
 
 const getLogDate = (eatenAt: Date) => eatenAt.toISOString().slice(0, 10)
 
@@ -146,21 +111,6 @@ const calculateProgress = (totals: typeof emptyMacros, goals: typeof emptyMacros
   fat: goals.fat > 0 ? roundNumber((totals.fat / goals.fat) * 100) : 0,
 })
 
-const addMacroTotals = (total: typeof emptyMacros, slotIngredient: MealPlanSlotIngredient, ingredient?: Ingredient) => {
-  if (!ingredient) {
-    return total
-  }
-
-  const amountRatio = Number(slotIngredient.amountG) / 100
-
-  return {
-    kcal: total.kcal + Number(ingredient.kcalPer100) * amountRatio,
-    protein: total.protein + Number(ingredient.proteinPer100) * amountRatio,
-    carbs: total.carbs + Number(ingredient.carbsPer100) * amountRatio,
-    fat: total.fat + Number(ingredient.fatPer100) * amountRatio,
-  }
-}
-
 const getSlotRecipe = async (recipeId: string | null) => {
   if (!recipeId) {
     return null
@@ -194,7 +144,7 @@ const getSlotDetail = async (slot: MealPlanSlotRow) => {
   const macrosTotal = slotIngredients.reduce(
     (total, slotIngredient) => addMacroTotals(
       total,
-      slotIngredient,
+      slotIngredient.amountG,
       slotIngredient.ingredientId ? ingredientById.get(slotIngredient.ingredientId) : undefined,
     ),
     emptyMacros,

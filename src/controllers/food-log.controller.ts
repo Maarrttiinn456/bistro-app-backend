@@ -2,6 +2,9 @@ import { and, asc, eq, gte, inArray, isNull, lt, or } from 'drizzle-orm'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { db } from '../db/client'
 import { foodLog, ingredients, mealPlanSlots, profiles, recipes } from '../db/schema'
+import { getActiveHouseholdId } from '../lib/access'
+import { getExclusiveEndDate, getStartDate } from '../lib/date-range'
+import { emptyMacros, toNumber } from '../lib/nutrition'
 import type {
   CreateFoodLogBody,
   FoodLogParams,
@@ -11,22 +14,6 @@ import type {
 
 type FoodLogRow = typeof foodLog.$inferSelect
 type FoodLogMutationBody = CreateFoodLogBody | UpdateFoodLogBody
-
-const emptyTotals = {
-  kcal: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-}
-
-// Prevadi Drizzle numeric hodnotu z DB na number pro JSON odpoved.
-const toNumber = (value: string | number | null) => {
-  if (value === null) {
-    return null
-  }
-
-  return Number(value)
-}
 
 // Upravuje food log z DB do tvaru, ktery vraci API.
 const normalizeFoodLog = (log: FoodLogRow) => ({
@@ -38,17 +25,6 @@ const normalizeFoodLog = (log: FoodLogRow) => ({
   quantityG: toNumber(log.quantityG),
   portions: toNumber(log.portions),
 })
-
-// Najde aktivni domacnost prihlaseneho uzivatele podle request.user.id.
-const getActiveHouseholdId = async (userId: string) => {
-  const [profile] = await db
-    .select({ activeHouseholdId: profiles.activeHouseholdId })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1)
-
-  return profile?.activeHouseholdId ?? null
-}
 
 // Nacte denni makro cile prihlaseneho uzivatele.
 const getUserGoals = async (userId: string) => {
@@ -88,24 +64,13 @@ const sendReferenceNotFound = async (reply: FastifyReply) => reply.code(404).sen
   error: 'Referenced entity not found',
 })
 
-// Vytvori zacatek rozsahu pro datum ve food log query.
-const getStartDate = (date: string) => new Date(`${date}T00:00:00.000Z`)
-
-// Vytvori exkluzivni konec rozsahu pro datum ve food log query.
-const getExclusiveEndDate = (date: string) => {
-  const endDate = getStartDate(date)
-  endDate.setUTCDate(endDate.getUTCDate() + 1)
-
-  return endDate
-}
-
 // Vrati YYYY-MM-DD klic pro seskupeni logu podle dne.
 const getLogDate = (eatenAt: Date) => eatenAt.toISOString().slice(0, 10)
 
 // Sestavi prazdny denni soucet pro konkretni datum.
 const createEmptyDailyTotal = (date: string) => ({
   date,
-  totals: { ...emptyTotals },
+  totals: { ...emptyMacros },
   count: 0,
 })
 

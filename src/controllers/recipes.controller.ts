@@ -1,7 +1,9 @@
-import { and, asc, desc, eq, ilike, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { db } from '../db/client'
-import { profiles, recipeIngredients, recipes } from '../db/schema'
+import { ingredients as ingredientsTable, recipeIngredients, recipes } from '../db/schema'
+import { getActiveHouseholdId } from '../lib/access'
+import { addMacroTotals, emptyMacros, toNumber } from '../lib/nutrition'
 import type {
   GetRecipesQuery,
   RecipeMutationBody,
@@ -11,40 +13,12 @@ import type {
 
 type RecipeIngredientInput = NonNullable<RecipeMutationBody['ingredients']>[number]
 
-// Docasna prazdna makra pro detail receptu, dokud nebude doplneny vypocet maker.
-const emptyMacros = {
-  kcal: 0,
-  protein: 0,
-  carbs: 0,
-  fat: 0,
-}
-
-// Prevadi Drizzle numeric hodnotu z DB na number pro JSON odpoved.
-const toNumber = (value: string | number | null) => {
-  if (value === null) {
-    return null
-  }
-
-  return Number(value)
-}
-
 // Upravuje surovinu receptu z DB do tvaru, ktery vraci API.
 const normalizeRecipeIngredient = (ingredient: typeof recipeIngredients.$inferSelect) => ({
   ...ingredient,
   amountG: Number(ingredient.amountG),
   displayAmount: toNumber(ingredient.displayAmount),
 })
-
-// Najde aktivni domacnost prihlaseneho uzivatele podle request.user.id.
-const getActiveHouseholdId = async (userId: string) => {
-  const [profile] = await db
-    .select({ activeHouseholdId: profiles.activeHouseholdId })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1)
-
-  return profile?.activeHouseholdId ?? null
-}
 
 // Vraci chybu, kdyz uzivatel nema nastavenou aktivni domacnost.
 const sendMissingHousehold = async (reply: FastifyReply) => reply.code(400).send({
@@ -74,11 +48,29 @@ const getRecipeDetail = async (recipeId: string, householdId: string) => {
     .where(eq(recipeIngredients.recipeId, recipe.id))
     .orderBy(asc(recipeIngredients.position), asc(recipeIngredients.createdAt))
 
+  const ingredientIds = ingredients
+    .map((ingredient) => ingredient.ingredientId)
+    .filter((ingredientId): ingredientId is string => Boolean(ingredientId))
+
+  const ingredientRows = ingredientIds.length
+    ? await db.select().from(ingredientsTable).where(inArray(ingredientsTable.id, ingredientIds))
+    : []
+
+  const ingredientById = new Map(ingredientRows.map((ingredient) => [ingredient.id, ingredient]))
+  const macrosTotal = ingredients.reduce(
+    (total, recipeIngredient) => addMacroTotals(
+      total,
+      recipeIngredient.amountG,
+      recipeIngredient.ingredientId ? ingredientById.get(recipeIngredient.ingredientId) : undefined,
+    ),
+    emptyMacros,
+  )
+
   return {
     recipe: {
       ...recipe,
       ingredients: ingredients.map(normalizeRecipeIngredient),
-      macrosTotal: emptyMacros,
+      macrosTotal,
     },
   }
 }
@@ -146,26 +138,30 @@ export const createRecipe = async (
 
   const body = request.body
 
-  const [recipe] = await db
-    .insert(recipes)
-    .values({
-      householdId,
-      createdBy: request.user.id,
-      name: body.name ?? '',
-      image: body.image ?? null,
-      prepTimeMin: body.prepTimeMin ?? 0,
-      portions: body.portions ?? 1,
-      mealTypes: body.mealTypes ?? [],
-      steps: body.steps ?? '',
-      sourceUrl: body.sourceUrl ?? null,
-    })
-    .returning()
+  const recipe = await db.transaction(async (tx) => {
+    const [createdRecipe] = await tx
+      .insert(recipes)
+      .values({
+        householdId,
+        createdBy: request.user.id,
+        name: body.name ?? '',
+        image: body.image ?? null,
+        prepTimeMin: body.prepTimeMin ?? 0,
+        portions: body.portions ?? 1,
+        mealTypes: body.mealTypes ?? [],
+        steps: body.steps ?? '',
+        sourceUrl: body.sourceUrl ?? null,
+      })
+      .returning()
 
-  if (body.ingredients?.length) {
-    await db
-      .insert(recipeIngredients)
-      .values(body.ingredients.map((ingredient, index) => mapIngredientInput(recipe.id, ingredient, index)))
-  }
+    if (body.ingredients?.length) {
+      await tx
+        .insert(recipeIngredients)
+        .values(body.ingredients.map((ingredient, index) => mapIngredientInput(createdRecipe.id, ingredient, index)))
+    }
+
+    return createdRecipe
+  })
 
   const detail = await getRecipeDetail(recipe.id, householdId)
 
@@ -226,28 +222,30 @@ export const updateRecipe = async (
     return
   }
 
-  await db
-    .update(recipes)
-    .set({
-      ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.image !== undefined ? { image: body.image } : {}),
-      ...(body.prepTimeMin !== undefined ? { prepTimeMin: body.prepTimeMin } : {}),
-      ...(body.portions !== undefined ? { portions: body.portions } : {}),
-      ...(body.mealTypes !== undefined ? { mealTypes: body.mealTypes } : {}),
-      ...(body.steps !== undefined ? { steps: body.steps } : {}),
-      ...(body.sourceUrl !== undefined ? { sourceUrl: body.sourceUrl } : {}),
-    })
-    .where(eq(recipes.id, existingRecipe.id))
+  await db.transaction(async (tx) => {
+    await tx
+      .update(recipes)
+      .set({
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.image !== undefined ? { image: body.image } : {}),
+        ...(body.prepTimeMin !== undefined ? { prepTimeMin: body.prepTimeMin } : {}),
+        ...(body.portions !== undefined ? { portions: body.portions } : {}),
+        ...(body.mealTypes !== undefined ? { mealTypes: body.mealTypes } : {}),
+        ...(body.steps !== undefined ? { steps: body.steps } : {}),
+        ...(body.sourceUrl !== undefined ? { sourceUrl: body.sourceUrl } : {}),
+      })
+      .where(eq(recipes.id, existingRecipe.id))
 
-  if (body.ingredients) {
-    await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, existingRecipe.id))
+    if (body.ingredients) {
+      await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, existingRecipe.id))
 
-    if (body.ingredients.length) {
-      await db
-        .insert(recipeIngredients)
-        .values(body.ingredients.map((ingredient, index) => mapIngredientInput(existingRecipe.id, ingredient, index)))
+      if (body.ingredients.length) {
+        await tx
+          .insert(recipeIngredients)
+          .values(body.ingredients.map((ingredient, index) => mapIngredientInput(existingRecipe.id, ingredient, index)))
+      }
     }
-  }
+  })
 
   const detail = await getRecipeDetail(existingRecipe.id, householdId)
 

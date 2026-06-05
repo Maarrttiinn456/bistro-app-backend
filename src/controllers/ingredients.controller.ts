@@ -1,17 +1,10 @@
 import { and, asc, eq, ilike, isNull, or } from 'drizzle-orm'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { db } from '../db/client'
-import { ingredients, profiles } from '../db/schema'
+import { ingredients } from '../db/schema'
+import { getActiveHouseholdId } from '../lib/access'
+import { toNumber } from '../lib/nutrition'
 import type { GetIngredientsQuery } from '../schemas/ingredients.schema'
-
-// Prevadi Drizzle numeric hodnotu z DB na number pro JSON odpoved.
-const toNumber = (value: string | number | null) => {
-  if (value === null) {
-    return null
-  }
-
-  return Number(value)
-}
 
 // Upravuje surovinu z DB do tvaru, ktery vraci API.
 const normalizeIngredient = (ingredient: typeof ingredients.$inferSelect) => ({
@@ -22,17 +15,6 @@ const normalizeIngredient = (ingredient: typeof ingredients.$inferSelect) => ({
   fatPer100: Number(ingredient.fatPer100),
   servingGrams: toNumber(ingredient.servingGrams),
 })
-
-// Najde aktivni domacnost prihlaseneho uzivatele podle request.user.id.
-const getActiveHouseholdId = async (userId: string) => {
-  const [profile] = await db
-    .select({ activeHouseholdId: profiles.activeHouseholdId })
-    .from(profiles)
-    .where(eq(profiles.id, userId))
-    .limit(1)
-
-  return profile?.activeHouseholdId ?? null
-}
 
 // Vraci chybu, kdyz uzivatel nema nastavenou aktivni domacnost.
 const sendMissingHousehold = async (reply: FastifyReply) => reply.code(400).send({
