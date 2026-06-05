@@ -1,0 +1,98 @@
+
+@apiUrl = http://localhost:3000
+@devToken = dev-token
+@seedRecipeId = bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1
+
+### Health
+GET {{apiUrl}}/health
+
+### Recipes - neprihlaseny request
+GET {{apiUrl}}/v1/recipes
+
+### Recipes - dev prihlaseni jako Adam Demo
+GET {{apiUrl}}/v1/recipes
+Authorization: Bearer {{devToken}}
+
+### Recipes - filter podle textu
+GET {{apiUrl}}/v1/recipes?query=chicken
+Authorization: Bearer {{devToken}}
+
+### Recipes - filter podle meal type
+GET {{apiUrl}}/v1/recipes?mealType=breakfast
+Authorization: Bearer {{devToken}}
+
+### Recipe detail - seed recept
+GET {{apiUrl}}/v1/recipes/{{seedRecipeId}}
+Authorization: Bearer {{devToken}}
+
+### Recipe create
+# @name createRecipe
+POST {{apiUrl}}/v1/recipes
+Authorization: Bearer {{devToken}}
+Content-Type: application/json
+
+{
+  "name": "Test omelette",
+  "image": null,
+  "prepTimeMin": 12,
+  "portions": 1,
+  "mealTypes": ["breakfast"],
+  "steps": "Whisk eggs and cook on a pan.",
+  "sourceUrl": null,
+  "ingredients": [
+    {
+      "ingredientId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa9",
+      "displayName": "Eggs",
+      "amountG": 110,
+      "displayAmount": 2,
+      "displayUnit": "pcs",
+      "position": 0
+    },
+    {
+      "ingredientId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa15",
+      "displayName": "Tomato",
+      "amountG": 80,
+      "displayAmount": 1,
+      "displayUnit": "pc",
+      "position": 1
+    }
+  ]
+}
+
+### Recipe detail - vytvoreny recept
+GET {{apiUrl}}/v1/recipes/{{createRecipe.response.body.recipe.id}}
+Authorization: Bearer {{devToken}}
+
+### Recipe update - vytvoreny recept
+PATCH {{apiUrl}}/v1/recipes/{{createRecipe.response.body.recipe.id}}
+Authorization: Bearer {{devToken}}
+Content-Type: application/json
+
+{
+  "name": "Test omelette updated",
+  "prepTimeMin": 15,
+  "mealTypes": ["breakfast", "snack"],
+  "ingredients": [
+    {
+      "ingredientId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa9",
+      "displayName": "Eggs",
+      "amountG": 165,
+      "displayAmount": 3,
+      "displayUnit": "pcs",
+      "position": 0
+    }
+  ]
+}
+
+### Recipe import preview - zatim vraci 501
+POST {{apiUrl}}/v1/recipes/import-url/preview
+Authorization: Bearer {{devToken}}
+Content-Type: application/json
+
+{
+  "url": "https://example.com/recipe"
+}
+
+### Recipe delete - vytvoreny recept
+DELETE {{apiUrl}}/v1/recipes/{{createRecipe.response.body.recipe.id}}
+Authorization: Bearer {{devToken}}

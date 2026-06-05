@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import Fastify from 'fastify'
 import { registerAuth } from './plugins/auth'
 import { registerSwagger } from './plugins/swagger'
