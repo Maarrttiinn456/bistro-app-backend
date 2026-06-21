@@ -26,7 +26,7 @@ const start = async () => {
   await app.register(overviewRoutes, { prefix: '/v1' })
 
   try {
-    const address = await app.listen({ port: 3000 })
+    const address = await app.listen({ port: 3000, host: '0.0.0.0' })
     app.log.info(`Server is now listening on ${address}`)
   } catch (err) {
     app.log.error(err)
