@@ -35,6 +35,19 @@ export const getIngredientsSchema = {
   },
 } satisfies FastifySchema
 
+export const getIngredientSchema = {
+  tags: ['Ingredients'],
+  summary: 'Get ingredient detail',
+  operationId: 'getIngredient',
+  params: ingredientParamsSchema,
+  response: {
+    200: schemaRef('IngredientResponse'),
+    400: schemaRef('ErrorResponse'),
+    401: schemaRef('ErrorResponse'),
+    404: schemaRef('ErrorResponse'),
+  },
+} satisfies FastifySchema
+
 export const createIngredientSchema = {
   tags: ['Ingredients'],
   summary: 'Create ingredient',

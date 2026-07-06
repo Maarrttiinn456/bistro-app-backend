@@ -213,6 +213,38 @@ export const createIngredient = async (
 }
 
 /*
+ * GET /ingredients/:ingredientId
+ * Vraci detail globalni suroviny nebo suroviny aktivni domacnosti uzivatele.
+ */
+export const getIngredient = async (
+  request: FastifyRequest<{ Params: IngredientParams }>,
+  reply: FastifyReply,
+) => {
+  const activeHouseholdId = await getActiveHouseholdId(request.user.id)
+  const scopeCondition = activeHouseholdId
+    ? or(isNull(ingredients.householdId), eq(ingredients.householdId, activeHouseholdId))
+    : isNull(ingredients.householdId)
+
+  const [ingredient] = await db
+    .select()
+    .from(ingredients)
+    .where(and(
+      eq(ingredients.id, request.params.ingredientId),
+      scopeCondition,
+      isNull(ingredients.archivedAt),
+    ))
+    .limit(1)
+
+  if (!ingredient) {
+    return reply.code(404).send({ error: 'Ingredient not found' })
+  }
+
+  return {
+    ingredient: normalizeIngredient(ingredient),
+  }
+}
+
+/*
  * PATCH /ingredients/:ingredientId/archive
  * Archivuje surovinu z aktivni domacnosti uzivatele.
  */
