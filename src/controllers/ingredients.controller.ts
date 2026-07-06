@@ -4,7 +4,7 @@ import { db } from '../db/client'
 import { ingredients } from '../db/schema'
 import { getActiveHouseholdId } from '../lib/access'
 import { toNumber } from '../lib/nutrition'
-import type { GetIngredientsQuery } from '../schemas/ingredients.schema'
+import type { CreateIngredientBody, GetIngredientsQuery } from '../schemas/ingredients.schema'
 
 // Upravuje surovinu z DB do tvaru, ktery vraci API.
 const normalizeIngredient = (ingredient: typeof ingredients.$inferSelect) => ({
@@ -20,6 +20,44 @@ const normalizeIngredient = (ingredient: typeof ingredients.$inferSelect) => ({
 const sendMissingHousehold = async (reply: FastifyReply) => reply.code(400).send({
   error: 'Active household is missing',
 })
+
+/*
+ * POST /ingredients
+ * Vytvori domacnostni surovinu v aktivni domacnosti uzivatele.
+ */
+export const createIngredient = async (
+  request: FastifyRequest<{ Body: CreateIngredientBody }>,
+  reply: FastifyReply,
+) => {
+  const activeHouseholdId = await getActiveHouseholdId(request.user.id)
+
+  if (!activeHouseholdId) {
+    await sendMissingHousehold(reply)
+    return
+  }
+
+  const body = request.body
+  const [ingredient] = await db
+    .insert(ingredients)
+    .values({
+      householdId: activeHouseholdId,
+      name: body.name,
+      brand: body.brand ?? null,
+      barcode: body.barcode ?? null,
+      baseUnit: body.baseUnit ?? 'g',
+      kcalPer100: body.kcalPer100.toString(),
+      proteinPer100: body.proteinPer100.toString(),
+      carbsPer100: body.carbsPer100.toString(),
+      fatPer100: body.fatPer100.toString(),
+      servingGrams: body.servingGrams?.toString() ?? null,
+      servingLabel: body.servingLabel ?? null,
+    })
+    .returning()
+
+  return reply.code(201).send({
+    ingredient: normalizeIngredient(ingredient),
+  })
+}
 
 /*
  * GET /ingredients

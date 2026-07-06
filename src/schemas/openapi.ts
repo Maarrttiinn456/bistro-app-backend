@@ -232,6 +232,23 @@ export const ingredientSchema = {
   },
 } as const
 
+export const createIngredientBodySchema = {
+  type: 'object',
+  required: ['name', 'kcalPer100', 'proteinPer100', 'carbsPer100', 'fatPer100'],
+  properties: {
+    name: { type: 'string', minLength: 1 },
+    brand: { type: ['string', 'null'] },
+    barcode: { type: ['string', 'null'] },
+    baseUnit: { type: 'string', enum: ['g', 'ml'] },
+    kcalPer100: { type: 'number', minimum: 0 },
+    proteinPer100: { type: 'number', minimum: 0 },
+    carbsPer100: { type: 'number', minimum: 0 },
+    fatPer100: { type: 'number', minimum: 0 },
+    servingGrams: { type: ['number', 'null'], minimum: 0 },
+    servingLabel: { type: ['string', 'null'] },
+  },
+} as const
+
 export const getIngredientsResponseSchema = {
   type: 'object',
   required: ['ingredients'],
@@ -240,6 +257,14 @@ export const getIngredientsResponseSchema = {
       type: 'array',
       items: componentRef('Ingredient'),
     },
+  },
+} as const
+
+export const ingredientResponseSchema = {
+  type: 'object',
+  required: ['ingredient'],
+  properties: {
+    ingredient: componentRef('Ingredient'),
   },
 } as const
 
@@ -796,7 +821,9 @@ export const openApiSchemas = [
   withId('ProfileResponse', profileResponseSchema),
   withId('UpdateProfileBody', updateProfileBodySchema),
   withId('Ingredient', ingredientSchema),
+  withId('CreateIngredientBody', createIngredientBodySchema),
   withId('GetIngredientsResponse', getIngredientsResponseSchema),
+  withId('IngredientResponse', ingredientResponseSchema),
   withId('FoodLog', foodLogSchema),
   withId('DailyTotal', dailyTotalSchema),
   withId('CreateFoodLogBody', createFoodLogBodyOpenApiSchema),
