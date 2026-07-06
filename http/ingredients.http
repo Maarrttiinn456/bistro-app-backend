@@ -1,0 +1,17 @@
+@apiUrl = http://localhost:3000
+@devToken = dev-token
+@barcode = 3017620422003
+
+### Ingredients - list dostupnych surovin
+GET {{apiUrl}}/v1/ingredients
+Authorization: Bearer {{devToken}}
+
+### Ingredients - import/resolve podle EAN z Open Food Facts
+POST {{apiUrl}}/v1/ingredients/barcode/resolve
+Authorization: Bearer {{devToken}}
+Content-Type: application/json
+
+{
+  "barcode": "{{barcode}}"
+}
+

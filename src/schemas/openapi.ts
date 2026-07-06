@@ -213,6 +213,7 @@ export const ingredientSchema = {
     'fatPer100',
     'servingGrams',
     'servingLabel',
+    'archivedAt',
     'createdAt',
   ],
   properties: {
@@ -228,6 +229,7 @@ export const ingredientSchema = {
     fatPer100: { type: 'number' },
     servingGrams: { type: ['number', 'null'] },
     servingLabel: { type: ['string', 'null'] },
+    archivedAt: { type: ['string', 'null'], format: 'date-time' },
     createdAt: { type: 'string', format: 'date-time' },
   },
 } as const
@@ -249,6 +251,14 @@ export const createIngredientBodySchema = {
   },
 } as const
 
+export const resolveIngredientBarcodeBodySchema = {
+  type: 'object',
+  required: ['barcode'],
+  properties: {
+    barcode: { type: 'string', minLength: 1 },
+  },
+} as const
+
 export const getIngredientsResponseSchema = {
   type: 'object',
   required: ['ingredients'],
@@ -265,6 +275,16 @@ export const ingredientResponseSchema = {
   required: ['ingredient'],
   properties: {
     ingredient: componentRef('Ingredient'),
+  },
+} as const
+
+export const resolveIngredientBarcodeResponseSchema = {
+  type: 'object',
+  required: ['ingredient', 'source', 'created'],
+  properties: {
+    ingredient: componentRef('Ingredient'),
+    source: { type: 'string', enum: ['local', 'open_food_facts'] },
+    created: { type: 'boolean' },
   },
 } as const
 
@@ -822,8 +842,10 @@ export const openApiSchemas = [
   withId('UpdateProfileBody', updateProfileBodySchema),
   withId('Ingredient', ingredientSchema),
   withId('CreateIngredientBody', createIngredientBodySchema),
+  withId('ResolveIngredientBarcodeBody', resolveIngredientBarcodeBodySchema),
   withId('GetIngredientsResponse', getIngredientsResponseSchema),
   withId('IngredientResponse', ingredientResponseSchema),
+  withId('ResolveIngredientBarcodeResponse', resolveIngredientBarcodeResponseSchema),
   withId('FoodLog', foodLogSchema),
   withId('DailyTotal', dailyTotalSchema),
   withId('CreateFoodLogBody', createFoodLogBodyOpenApiSchema),

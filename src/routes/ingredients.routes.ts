@@ -1,10 +1,14 @@
 import type { FastifyInstance } from 'fastify'
-import { createIngredient, getIngredients } from '../controllers/ingredients.controller'
+import { archiveIngredient, createIngredient, getIngredients, resolveIngredientBarcode } from '../controllers/ingredients.controller'
 import {
   type CreateIngredientBody,
   type GetIngredientsQuery,
+  type IngredientParams,
+  type ResolveIngredientBarcodeBody,
+  archiveIngredientSchema,
   createIngredientSchema,
   getIngredientsSchema,
+  resolveIngredientBarcodeSchema,
 } from '../schemas/ingredients.schema'
 
 export const ingredientRoutes = async (app: FastifyInstance) => {
@@ -12,6 +16,18 @@ export const ingredientRoutes = async (app: FastifyInstance) => {
     '/ingredients',
     { schema: createIngredientSchema, preHandler: app.authenticate },
     createIngredient,
+  )
+
+  app.patch<{ Params: IngredientParams }>(
+    '/ingredients/:ingredientId/archive',
+    { schema: archiveIngredientSchema, preHandler: app.authenticate },
+    archiveIngredient,
+  )
+
+  app.post<{ Body: ResolveIngredientBarcodeBody }>(
+    '/ingredients/barcode/resolve',
+    { schema: resolveIngredientBarcodeSchema, preHandler: app.authenticate },
+    resolveIngredientBarcode,
   )
 
   app.get<{ Querystring: GetIngredientsQuery }>(

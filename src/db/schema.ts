@@ -60,6 +60,7 @@ export const ingredients = pgTable('ingredients', {
   fatPer100: numeric('fat_per_100').notNull(),
   servingGrams: numeric('serving_grams'),
   servingLabel: text('serving_label'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 })
 

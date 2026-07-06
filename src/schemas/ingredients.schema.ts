@@ -1,6 +1,14 @@
 import type { FastifySchema } from 'fastify'
 import type { FromSchema } from 'json-schema-to-ts'
-import { createIngredientBodySchema, schemaRef } from './openapi'
+import { createIngredientBodySchema, resolveIngredientBarcodeBodySchema, schemaRef } from './openapi'
+
+export const ingredientParamsSchema = {
+  type: 'object',
+  required: ['ingredientId'],
+  properties: {
+    ingredientId: { type: 'string', format: 'uuid' },
+  },
+} as const
 
 export const getIngredientsQuerySchema = {
   type: 'object',
@@ -10,8 +18,10 @@ export const getIngredientsQuerySchema = {
   },
 } as const
 
+export type IngredientParams = FromSchema<typeof ingredientParamsSchema>
 export type GetIngredientsQuery = FromSchema<typeof getIngredientsQuerySchema>
 export type CreateIngredientBody = FromSchema<typeof createIngredientBodySchema>
+export type ResolveIngredientBarcodeBody = FromSchema<typeof resolveIngredientBarcodeBodySchema>
 
 export const getIngredientsSchema = {
   tags: ['Ingredients'],
@@ -34,5 +44,33 @@ export const createIngredientSchema = {
     201: schemaRef('IngredientResponse'),
     400: schemaRef('ErrorResponse'),
     401: schemaRef('ErrorResponse'),
+  },
+} satisfies FastifySchema
+
+export const archiveIngredientSchema = {
+  tags: ['Ingredients'],
+  summary: 'Archive ingredient',
+  operationId: 'archiveIngredient',
+  params: ingredientParamsSchema,
+  response: {
+    200: schemaRef('IngredientResponse'),
+    400: schemaRef('ErrorResponse'),
+    401: schemaRef('ErrorResponse'),
+    404: schemaRef('ErrorResponse'),
+  },
+} satisfies FastifySchema
+
+export const resolveIngredientBarcodeSchema = {
+  tags: ['Ingredients'],
+  summary: 'Resolve ingredient by barcode',
+  operationId: 'resolveIngredientBarcode',
+  body: schemaRef('ResolveIngredientBarcodeBody'),
+  response: {
+    200: schemaRef('ResolveIngredientBarcodeResponse'),
+    400: schemaRef('ErrorResponse'),
+    401: schemaRef('ErrorResponse'),
+    404: schemaRef('ErrorResponse'),
+    422: schemaRef('ErrorResponse'),
+    502: schemaRef('ErrorResponse'),
   },
 } satisfies FastifySchema
