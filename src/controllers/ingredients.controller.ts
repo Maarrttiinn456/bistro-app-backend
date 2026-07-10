@@ -9,6 +9,7 @@ import type {
   GetIngredientsQuery,
   IngredientParams,
   ResolveIngredientBarcodeBody,
+  UpdateIngredientBody,
 } from '../schemas/ingredients.schema'
 
 const OPEN_FOOD_FACTS_FIELDS = [
@@ -234,6 +235,52 @@ export const getIngredient = async (
       isNull(ingredients.archivedAt),
     ))
     .limit(1)
+
+  if (!ingredient) {
+    return reply.code(404).send({ error: 'Ingredient not found' })
+  }
+
+  return {
+    ingredient: normalizeIngredient(ingredient),
+  }
+}
+
+/*
+ * PATCH /ingredients/:ingredientId
+ * Upravi domacnostni surovinu v aktivni domacnosti uzivatele.
+ */
+export const updateIngredient = async (
+  request: FastifyRequest<{ Params: IngredientParams, Body: UpdateIngredientBody }>,
+  reply: FastifyReply,
+) => {
+  const activeHouseholdId = await getActiveHouseholdId(request.user.id)
+
+  if (!activeHouseholdId) {
+    await sendMissingHousehold(reply)
+    return
+  }
+
+  const body = request.body
+  const [ingredient] = await db
+    .update(ingredients)
+    .set({
+      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.brand !== undefined ? { brand: body.brand } : {}),
+      ...(body.barcode !== undefined ? { barcode: body.barcode } : {}),
+      ...(body.baseUnit !== undefined ? { baseUnit: body.baseUnit } : {}),
+      ...(body.kcalPer100 !== undefined ? { kcalPer100: body.kcalPer100.toString() } : {}),
+      ...(body.proteinPer100 !== undefined ? { proteinPer100: body.proteinPer100.toString() } : {}),
+      ...(body.carbsPer100 !== undefined ? { carbsPer100: body.carbsPer100.toString() } : {}),
+      ...(body.fatPer100 !== undefined ? { fatPer100: body.fatPer100.toString() } : {}),
+      ...(body.servingGrams !== undefined ? { servingGrams: body.servingGrams?.toString() ?? null } : {}),
+      ...(body.servingLabel !== undefined ? { servingLabel: body.servingLabel } : {}),
+    })
+    .where(and(
+      eq(ingredients.id, request.params.ingredientId),
+      eq(ingredients.householdId, activeHouseholdId),
+      isNull(ingredients.archivedAt),
+    ))
+    .returning()
 
   if (!ingredient) {
     return reply.code(404).send({ error: 'Ingredient not found' })

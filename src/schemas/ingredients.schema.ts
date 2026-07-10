@@ -1,6 +1,6 @@
 import type { FastifySchema } from 'fastify'
 import type { FromSchema } from 'json-schema-to-ts'
-import { createIngredientBodySchema, resolveIngredientBarcodeBodySchema, schemaRef } from './openapi'
+import { createIngredientBodySchema, resolveIngredientBarcodeBodySchema, schemaRef, updateIngredientBodySchema } from './openapi'
 
 export const ingredientParamsSchema = {
   type: 'object',
@@ -21,6 +21,7 @@ export const getIngredientsQuerySchema = {
 export type IngredientParams = FromSchema<typeof ingredientParamsSchema>
 export type GetIngredientsQuery = FromSchema<typeof getIngredientsQuerySchema>
 export type CreateIngredientBody = FromSchema<typeof createIngredientBodySchema>
+export type UpdateIngredientBody = FromSchema<typeof updateIngredientBodySchema>
 export type ResolveIngredientBarcodeBody = FromSchema<typeof resolveIngredientBarcodeBodySchema>
 
 export const getIngredientsSchema = {
@@ -57,6 +58,20 @@ export const createIngredientSchema = {
     201: schemaRef('IngredientResponse'),
     400: schemaRef('ErrorResponse'),
     401: schemaRef('ErrorResponse'),
+  },
+} satisfies FastifySchema
+
+export const updateIngredientSchema = {
+  tags: ['Ingredients'],
+  summary: 'Update ingredient',
+  operationId: 'updateIngredient',
+  params: ingredientParamsSchema,
+  body: schemaRef('UpdateIngredientBody'),
+  response: {
+    200: schemaRef('IngredientResponse'),
+    400: schemaRef('ErrorResponse'),
+    401: schemaRef('ErrorResponse'),
+    404: schemaRef('ErrorResponse'),
   },
 } satisfies FastifySchema
 

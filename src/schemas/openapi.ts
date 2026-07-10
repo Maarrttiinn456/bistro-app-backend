@@ -251,6 +251,11 @@ export const createIngredientBodySchema = {
   },
 } as const
 
+export const updateIngredientBodySchema = {
+  ...createIngredientBodySchema,
+  required: [],
+} as const
+
 export const resolveIngredientBarcodeBodySchema = {
   type: 'object',
   required: ['barcode'],
@@ -842,6 +847,7 @@ export const openApiSchemas = [
   withId('UpdateProfileBody', updateProfileBodySchema),
   withId('Ingredient', ingredientSchema),
   withId('CreateIngredientBody', createIngredientBodySchema),
+  withId('UpdateIngredientBody', updateIngredientBodySchema),
   withId('ResolveIngredientBarcodeBody', resolveIngredientBarcodeBodySchema),
   withId('GetIngredientsResponse', getIngredientsResponseSchema),
   withId('IngredientResponse', ingredientResponseSchema),

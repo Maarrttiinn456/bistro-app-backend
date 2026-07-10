@@ -5,17 +5,20 @@ import {
   getIngredient,
   getIngredients,
   resolveIngredientBarcode,
+  updateIngredient,
 } from '../controllers/ingredients.controller'
 import {
   type CreateIngredientBody,
   type GetIngredientsQuery,
   type IngredientParams,
   type ResolveIngredientBarcodeBody,
+  type UpdateIngredientBody,
   archiveIngredientSchema,
   createIngredientSchema,
   getIngredientSchema,
   getIngredientsSchema,
   resolveIngredientBarcodeSchema,
+  updateIngredientSchema,
 } from '../schemas/ingredients.schema'
 
 export const ingredientRoutes = async (app: FastifyInstance) => {
@@ -41,6 +44,12 @@ export const ingredientRoutes = async (app: FastifyInstance) => {
     '/ingredients/:ingredientId',
     { schema: getIngredientSchema, preHandler: app.authenticate },
     getIngredient,
+  )
+
+  app.patch<{ Params: IngredientParams, Body: UpdateIngredientBody }>(
+    '/ingredients/:ingredientId',
+    { schema: updateIngredientSchema, preHandler: app.authenticate },
+    updateIngredient,
   )
 
   app.get<{ Querystring: GetIngredientsQuery }>(
