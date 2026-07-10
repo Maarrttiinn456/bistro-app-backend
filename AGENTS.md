@@ -10,6 +10,7 @@ Node.js + Fastify + Drizzle ORM + Supabase Postgres + Zod + TypeScript.
 - Pokud by bylo vhodne udelat neco navic, nejdriv se zeptej a cekej na potvrzeni.
 - Pokud si nejsi jisty, co ma byt spravne reseni, zeptej se uzivatele pred upravou kodu.
 - Drz reseni co nejjednodussi a nepridavej abstrakce, dokud nejsou opravdu potreba.
+- Pri reseni startu backendu nebo problemu s prihlasenim z mobilu zkontroluj, ze backend posloucha na `0.0.0.0:3000` a ze frontendove `EXPO_PUBLIC_API_URL` miri na aktualni IPv4 adresu pocitace v dane siti. Pokud IP nesedi, upozorni uzivatele.
 
 ## Komentare v kodu
 
